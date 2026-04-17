@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Remote Control</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  :root {
+    --bg: #0d0d0f;
+    --surface: #1a1a1f;
+    --surface2: #242429;
+    --border: rgba(255,255,255,0.08);
+    --accent: #6366f1;
+    --accent2: #818cf8;
+    --text: #f0f0f5;
+    --muted: #888;
+    --danger: #ef4444;
+    --green: #22c55e;
+    --radius: 14px;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+  #status-bar { display: flex; align-items: center; gap: 8px; padding: 14px 16px 10px; font-size: 12px; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+  #dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); transition: background .3s; flex-shrink: 0; }
+  #dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  .tabs { display: flex; gap: 6px; padding: 0 12px 12px; }
+  .tab { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 4px; font-size: 12px; color: var(--muted); text-align: center; cursor: pointer; transition: all .15s; user-select: none; }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .panel { display: none; flex: 1; flex-direction: column; }
+  .panel.active { display: flex; }
+
+  /* TRACKPAD */
+  #trackpad-panel { padding: 0 12px 12px; }
+  #trackpad {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    height: 280px;
+    position: relative;
+    cursor: crosshair;
+    user-select: none;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  #trackpad::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(99,102,241,0.04) 0%, transparent 70%); pointer-events: none; }
+  #trackpad-hint { color: var(--muted); font-size: 13px; pointer-events: none; opacity: 0.5; }
+  .btn-row { display: flex; gap: 8px; margin-top: 8px; }
+  .mouse-btn { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 13px; color: var(--text); text-align: center; cursor: pointer; transition: all .1s; user-select: none; }
+  .mouse-btn:active, .mouse-btn.pressed { background: var(--accent); border-color: var(--accent); transform: scale(0.96); }
+  .mouse-btn.right { background: var(--surface2); }
+  .scroll-row { display: flex; gap: 8px; margin-top: 8px; }
+  .scroll-btn { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 13px; font-size: 18px; color: var(--text); text-align: center; cursor: pointer; transition: all .1s; user-select: none; }
+  .scroll-btn:active { background: var(--surface2); transform: scale(0.96); }
+
+  /* KEYBOARD */
+  #kb-panel { padding: 0 12px 12px; display: none; flex-direction: column; gap: 8px; }
+  #kb-panel.active { display: flex; }
+  #type-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 16px;
+    width: 100%;
+    outline: none;
+  }
+  #type-input:focus { border-color: var(--accent); }
+  #send-text-btn {
+    background: var(--accent); border: none; border-radius: 10px; color: #fff;
+    padding: 13px; font-size: 15px; font-weight: 600; width: 100%; cursor: pointer;
+  }
+  .key-section-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 2px 2px; }
+  .key-row { display: flex; gap: 5px; flex-wrap: wrap; }
+  .key {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 8px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+    text-align: center;
+    min-width: 44px;
+    flex: 1;
+    transition: all .1s;
+    white-space: nowrap;
+  }
+  .key:active { background: var(--accent); border-color: var(--accent); transform: scale(0.94); }
+  .key.wide { flex: 2; }
+
+  /* HOTKEYS */
+  #hot-panel { padding: 0 12px 12px; display: none; flex-direction: column; gap: 6px; }
+  #hot-panel.active { display: flex; }
+  .hotkey-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer;
+    transition: all .12s;
+    user-select: none;
+  }
+  .hotkey-btn:active { background: var(--surface2); transform: scale(0.98); }
+  .hotkey-label { font-size: 14px; color: var(--text); }
+  .hotkey-keys { display: flex; gap: 4px; }
+  .hotkey-key { background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 3px 7px; font-size: 11px; color: var(--muted); font-family: monospace; }
+</style>
+</head>
+<body>
+
+<div id="status-bar">
+  <div id="dot"></div>
+  <span id="status-text">Connecting…</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('trackpad')">Trackpad</div>
+  <div class="tab" onclick="switchTab('kb')">Keyboard</div>
+  <div class="tab" onclick="switchTab('hot')">Hotkeys</div>
+</div>
+
+<div id="trackpad-panel" class="panel active">
+  <div id="trackpad-panel-inner" style="padding: 0 0 0; flex:1; display:flex; flex-direction:column; gap:8px; padding: 0 12px 12px;">
+    <div id="trackpad">
+      <span id="trackpad-hint">Drag to move · Double-tap to click</span>
+    </div>
+    <div class="btn-row">
+      <div class="mouse-btn" id="lclick-btn" onclick="send({type:'click',button:'left'})">Left Click</div>
+      <div class="mouse-btn right" onclick="send({type:'click',button:'right'})">Right Click</div>
+      <div class="mouse-btn" style="flex:0.7" onclick="send({type:'doubleclick'})">Dbl</div>
+    </div>
+    <div class="scroll-row">
+      <div class="scroll-btn" onclick="send({type:'scroll',dy:-5})">▲ Scroll Up</div>
+      <div class="scroll-btn" onclick="send({type:'scroll',dy:5})">▼ Scroll Down</div>
+    </div>
+  </div>
+</div>
+
+<div id="kb-panel" class="panel">
+  <div id="kb-panel-inner" style="padding:0 12px 12px; display:flex; flex-direction:column; gap:8px;">
+    <input id="type-input" type="text" placeholder="Type text to send…" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button id="send-text-btn" onclick="sendText()">Send Text ↵</button>
+
+    <div class="key-section-label">Navigation</div>
+    <div class="key-row">
+      <div class="key" onclick="sendKey('Up')">▲</div>
+      <div class="key" onclick="sendKey('Down')">▼</div>
+      <div class="key" onclick="sendKey('Left')">◀</div>
+      <div class="key" onclick="sendKey('Right')">▶</div>
+      <div class="key wide" onclick="sendKey('Return')">Enter</div>
+    </div>
+    <div class="key-row">
+      <div class="key wide" onclick="sendKey('BackSpace')">⌫ Delete</div>
+      <div class="key wide" onclick="sendKey('Escape')">Esc</div>
+      <div class="key" onclick="sendKey('Tab')">Tab</div>
+    </div>
+
+    <div class="key-section-label">Function</div>
+    <div class="key-row">
+      <div class="key" onclick="sendKey('F1')">F1</div>
+      <div class="key" onclick="sendKey('F2')">F2</div>
+      <div class="key" onclick="sendKey('F3')">F3</div>
+      <div class="key" onclick="sendKey('F4')">F4</div>
+      <div class="key" onclick="sendKey('F5')">F5</div>
+    </div>
+    <div class="key-row">
+      <div class="key" onclick="sendKey('F6')">F6</div>
+      <div class="key" onclick="sendKey('F7')">F7</div>
+      <div class="key" onclick="sendKey('F8')">F8</div>
+      <div class="key" onclick="sendKey('F11')">F11</div>
+      <div class="key" onclick="sendKey('F12')">F12</div>
+    </div>
+  </div>
+</div>
+
+<div id="hot-panel" class="panel">
+  <div id="hot-panel-inner" style="padding:0 12px 12px; display:flex; flex-direction:column; gap:6px;">
+</div>
+</div>
+
+<script>
+const HOTKEYS = [
+  { label: 'Copy',           keys: ['LeftControl','c'] },
+  { label: 'Paste',          keys: ['LeftControl','v'] },
+  { label: 'Cut',            keys: ['LeftControl','x'] },
+  { label: 'Undo',           keys: ['LeftControl','z'] },
+  { label: 'Redo',           keys: ['LeftControl','y'] },
+  { label: 'Select All',     keys: ['LeftControl','a'] },
+  { label: 'Save',           keys: ['LeftControl','s'] },
+  { label: 'Find',           keys: ['LeftControl','f'] },
+  { label: 'New Tab',        keys: ['LeftControl','t'] },
+  { label: 'Close Tab',      keys: ['LeftControl','w'] },
+  { label: 'Alt+Tab',        keys: ['LeftAlt','Tab'] },
+  { label: 'Task Manager',   keys: ['LeftControl','LeftShift','Escape'] },
+  { label: 'Lock Screen',    keys: ['LeftSuper','l'] },
+  { label: 'Show Desktop',   keys: ['LeftSuper','d'] },
+  { label: 'Screenshot',     keys: ['LeftSuper','Shift','s'] },
+  { label: 'Fullscreen',     keys: ['F11'] },
+  { label: 'Reload Page',    keys: ['F5'] },
+];
+
+const hotContainer = document.getElementById('hot-panel-inner');
+HOTKEYS.forEach(hk => {
+  const el = document.createElement('div');
+  el.className = 'hotkey-btn';
+  el.onclick = () => send({ type: 'hotkey', keys: hk.keys });
+  el.innerHTML = `
+    <span class="hotkey-label">${hk.label}</span>
+    <div class="hotkey-keys">${hk.keys.map(k => `<span class="hotkey-key">${k.replace('Left','').replace('Super','Win')}</span>`).join('')}</div>
+  `;
+  hotContainer.appendChild(el);
+});
+
+let ws, reconnectTimer;
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen = () => {
+    document.getElementById('dot').classList.add('on');
+    document.getElementById('status-text').textContent = 'Connected';
+  };
+  ws.onclose = () => {
+    document.getElementById('dot').classList.remove('on');
+    document.getElementById('status-text').textContent = 'Reconnecting…';
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connect, 2000);
+  };
+  ws.onerror = () => ws.close();
+}
+connect();
+
+function send(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+}
+
+function sendKey(k) { send({ type: 'keypress', key: k }); }
+function sendText() {
+  const el = document.getElementById('type-input');
+  if (el.value) { send({ type: 'type', text: el.value }); el.value = ''; }
+}
+
+document.getElementById('type-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); sendText(); }
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['trackpad','kb','hot'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const panelMap = { trackpad: 'trackpad-panel', kb: 'kb-panel', hot: 'hot-panel' };
+  document.getElementById(panelMap[name]).classList.add('active');
+}
+
+/* --- Trackpad --- */
+const pad = document.getElementById('trackpad');
+const hint = document.getElementById('trackpad-hint');
+let lastX = 0, lastY = 0, touching = false;
+let tapTimer = null, tapCount = 0;
+
+pad.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  lastX = t.clientX; lastY = t.clientY;
+  touching = true;
+  hint.style.opacity = 0;
+
+  tapCount++;
+  if (tapTimer) clearTimeout(tapTimer);
+  tapTimer = setTimeout(() => {
+    if (tapCount === 2) send({ type: 'doubleclick' });
+    tapCount = 0;
+  }, 280);
+}, { passive: false });
+
+pad.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!touching || e.touches.length !== 1) return;
+  const t = e.touches[0];
+  const dx = Math.round((t.clientX - lastX) * 2);
+  const dy = Math.round((t.clientY - lastY) * 2);
+  if (dx !== 0 || dy !== 0) {
+    send({ type: 'mousemove', dx, dy });
+    tapCount = 0;
+    if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; }
+  }
+  lastX = t.clientX; lastY = t.clientY;
+}, { passive: false });
+
+pad.addEventListener('touchend', e => {
+  e.preventDefault();
+  touching = false;
+}, { passive: false });
+
+/* Two-finger scroll on trackpad */
+let lastTwoY = 0;
+pad.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    lastTwoY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+  }
+}, { passive: false });
+pad.addEventListener('touchmove', e => {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    const curY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    const dy = Math.round((curY - lastTwoY) / 6);
+    if (dy !== 0) send({ type: 'scroll', dy: -dy });
+    lastTwoY = curY;
+  }
+}, { passive: false });
+</script>
+</body>
+</html>
