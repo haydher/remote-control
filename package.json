@@ -1,10 +1,20 @@
 {
   "name": "remote-control",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "1.1.0",
+  "description": "Phone-to-PC remote control via WebSocket",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "build": "pkg server.js --targets node18-win-x64 --output dist/RemoteControl.exe --assets public/**/*",
+    "build:all": "pkg server.js --targets node18-win-x64,node18-macos-x64,node18-linux-x64 --output dist/RemoteControl --assets public/**/*"
+  },
+  "pkg": {
+    "assets": [
+      "public/**/*"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ]
   },
   "keywords": [],
   "author": "",
@@ -13,5 +23,8 @@
     "@nut-tree-fork/nut-js": "^4.2.6",
     "express": "^5.2.1",
     "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
   }
 }
