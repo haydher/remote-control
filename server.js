@@ -116,7 +116,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-const publicDir = path.join(__dirname, "public");
+const publicDir = process.pkg ? path.join(path.dirname(process.execPath), "public") : path.join(__dirname, "public");
 app.use(express.static(publicDir, { index: "index.html" }));
 
 app.get("/favicon.ico", (_req, res) => {
